@@ -127,6 +127,8 @@ def min_range(filename, max_col, min_col, select_col, options={abs_val: false})
   return parsed_data[min_range_idx][select_col]
 end
 
+puts "Solution without gems or built-in CSV class"
+puts "==========================================="
 
 time = Benchmark.measure do
   # Weather data
