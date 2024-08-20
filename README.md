@@ -40,4 +40,4 @@ and adding a unique `id` column header if missing. It then populates an array of
 
 #### With dependency solution:
 ---
-This solution performs a simpler cleaning of data, treating contiguous stretches of whitespace as delimiters, and does not atttempt to account for empty cells. It converts the delimiters to commas, and uses Ruby's CSV class to convert the cleaned string data into an array of hashes. Note, this approach is still able to satisfy the prompts for the exercise.
+This solution performs a simpler cleaning of data, treating each contiguous stretch of whitespace as individual delimiters, and does not atttempt to account for empty cells. It converts said delimiters to commas, and uses Ruby's CSV class to convert the cleaned string data into an array of hashes. Note, this approach is still able to satisfy the prompts for the exercise.
