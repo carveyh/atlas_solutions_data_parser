@@ -140,9 +140,11 @@ def min_spread(filename, max_col, min_col, select_col=nil, options={abs_val: tru
 end
 
 # Weather data
-filename = "w_data.dat"
-puts min_spread(filename, "MxT", "MnT", "Dy")
+filename = "../../data/w_data.dat"
+data_file_path = File.expand_path(filename, __FILE__)
+puts min_spread(data_file_path, "MxT", "MnT", "Dy")
 
 # Soccer
-filename = "soccer.dat"
-puts min_spread(filename, "F", "A", "Team", abs_val: true)
+filename = "../../data/soccer.dat"
+data_file_path = File.expand_path(filename, __FILE__)
+puts min_spread(data_file_path, "F", "A", "Team", abs_val: true)
