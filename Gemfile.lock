@@ -1,6 +1,7 @@
 GEM
   remote: https://rubygems.org/
   specs:
+    benchmark (0.3.0)
     csv (3.3.0)
     smarter_csv (1.12.1)
 
@@ -9,6 +10,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  benchmark
   csv
   smarter_csv
 
