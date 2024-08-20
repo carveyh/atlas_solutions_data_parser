@@ -39,7 +39,6 @@
 # Ensure no overlap with any existing `id` col_names in hash
 def generate_unique_id_col_name(col_names_arr)
   num = 0
-  print col_names_arr
   while col_names_arr.any?{|name_ele| name_ele.first == "ID-#{num}"}
     num += 1
   end
@@ -47,7 +46,7 @@ def generate_unique_id_col_name(col_names_arr)
 end
 
 # Returns e.g. [["word1", [start_idx1, end_idx1]], ["word2", [start_idx2, end_idx2]], ... ]
-def map_words_to_start_end_indices(string)
+def map_words_to_indices(string)
   indices_array = []
   string.scan(/\S+/) do |match|
     indices_array << [match, Regexp.last_match.offset(0)]
@@ -55,96 +54,101 @@ def map_words_to_start_end_indices(string)
   return indices_array
 end
 
-def parse_whitespace_delimited_data(filename)
-  # Split data file into array of rows, 
-  raw_data = File.read(filename).split("\n")
-  # Identify header row, ensure `id` col_name, setup indices
-  first_data_row_idx = raw_data.index{|row| row.match?(/^\s*\d/)} # Find first line of data starting with a numerical digit, 
-  raise "Data format not recognized" if first_data_row_idx == nil # If no data beginning with an id number, exit early
-  header_idx = first_data_row_idx - 1                             # Find first non-blank header line before it
+def get_col_name_indices(raw_data)
+  # Identify header row
+  first_data_row_idx = raw_data.index{|row| row.match?(/^\s*\d/)}
+  header_idx = first_data_row_idx - 1                             # Find first non-blank header line before first data row
   while header_idx >= 0
-    break if raw_data[header_idx].match?(/^\s*[a-zA-Z]/)
+    break if raw_data[header_idx].match?(/^\s*[a-zA-Z]/)          # Can modify to exclude delimiters / comments
     header_idx -= 1
   end
 
-  # Get starting and ending indices of each column header "word"
-  col_name_indices = map_words_to_start_end_indices(raw_data[header_idx])
+  # Get bounding indices of each column name in header row, used to match cells to columns per row
+  col_name_indices = map_words_to_indices(raw_data[header_idx])
 
-  # If id column doesn't have header, add it
-  raw_data[first_data_row_idx].match(/\S+/)
-  id_indices = Regexp.last_match.offset(0)
-  if id_indices.last < col_name_indices.first.last.first
+  # If the id column doesn't have a column name, add it
+  sample_row_id_indices = raw_data[first_data_row_idx].match(/\S+/).offset(0)
+  first_col_name_indices = col_name_indices.first.last
+  if sample_row_id_indices.last < first_col_name_indices.first
     id_col_name = generate_unique_id_col_name(col_name_indices)
-    col_name_indices = [[id_col_name, [0, id_indices.last]]].concat(col_name_indices)
+    col_name_indices = [[id_col_name, [0, sample_row_id_indices.last]]].concat(col_name_indices)
   end
+  return col_name_indices
+end
 
-  # With headers ready, clean each data row - discard delimiters, add empty strings for "empty" cells
-  # cleaned_data = [col_name_indices.keys.join(",")] # initialize with headers row
+def parse_whitespace_delimited_data(filename)
+  raw_data = File.read(filename).split("\n")
+
+  # Get bounding indices of each column name in header row, used to match cells to columns per row
+  col_name_indices = get_col_name_indices(raw_data)
+
+  # Column header names identified, next parse rows: per row, compare position of "words" vs col names to determine 
+  # whether word belongs to a given column, a later column (indicating empty cell), or before current column (indicating delimiter)
   cleaned_data = []
   raw_data.each do |row|
     next if !row.match?(/^\s*\d+/) # skip any lines that don't begin with an id number
     row_data = {}
     mismatch = false
-    word_indices = map_words_to_start_end_indices(row)
+    word_indices = map_words_to_indices(row)
     word_idx = 0
     col_name_idx = 0
     while col_name_idx < col_name_indices.length
       curr_header = col_name_indices[col_name_idx].first
       curr_word = word_indices[word_idx].first
       # Check if overlap, if so, row's cell matches the col
-      if(!(word_indices[word_idx].last.last <= col_name_indices[col_name_idx].last.first || 
-        col_name_indices[col_name_idx].last.last <= word_indices[word_idx].last.first
-      ))
+      curr_word_left = word_indices[word_idx].last.first
+      curr_word_right = word_indices[word_idx].last.last
+      col_name_left = col_name_indices[col_name_idx].last.first
+      col_name_right = col_name_indices[col_name_idx].last.last
+      if(curr_word_right <= col_name_left || col_name_right <= curr_word_left)
+        mismatch = true
+      else
         mismatch = false
-        row_data[curr_header] = curr_word # it's a match, add it to the row_data object
+        row_data[curr_header] = curr_word # it's a match, add k-v pair to row_data hash
         col_name_idx += 1
         word_idx += 1
-      else
-        mismatch = true
       end
 
-      # If mismatch, check if word is ahead of col_name (meaning empty cell), or if word is behind col_name (meaning delimiter)
+      # When mismatch, if word is ahead of col_name: empty cell, else it's behind: non-whitespace delimiter
       if(mismatch)
-        # If word is ahead of col_name
-        if(col_name_indices[col_name_idx].last.first < word_indices[word_idx].last.last)
+        if(col_name_left < curr_word_right)
           row_data[curr_header] = "" # empty cell
           col_name_idx += 1
-        else
-          word_idx += 1 # delimiter, ignore it and move onto next word
+        else 
+          word_idx += 1 # delimiter, ignore
         end
       end
-    end
-    if ["10", "13"].include?(word_indices.first.first)
     end
     cleaned_data << row_data
   end
   return cleaned_data
 end
 
-def min_spread(filename, max_col, min_col, select_col=nil, options={abs_val: true})
-  raise "Please specify file" if !filename
-  raise "Please specify columns to compare" if !max_col || !min_col
+# Given a whitespace-delimited data file,
+# identify the row with the smallest difference between two specified columns, 
+# and return the value of a third specified column from the identified row.
+# Accepts option hash to check for absolute value.
+def min_range(filename, max_col, min_col, select_col=nil, options={abs_val: true})
   parsed_data = parse_whitespace_delimited_data(filename)
-  min_spread = Float::INFINITY
-  min_spread_idx = nil
+  min_range = Float::INFINITY
+  min_range_idx = nil
   parsed_data.each_with_index do |row, row_idx|
     diff = row[max_col].to_f - row[min_col].to_f
     diff = diff.abs if options[:abs_val]
-    puts "#{select_col}: #{row[select_col]}: #{row[max_col]} - #{row[min_col]} = #{diff}"
-    if diff < min_spread
-      min_spread = diff
-      min_spread_idx = row_idx
+    if diff < min_range
+      min_range = diff
+      min_range_idx = row_idx
     end
   end
-  return select_col ? parsed_data[min_spread_idx][select_col] : parsed_data[min_spread_idx]
+  return parsed_data[min_range_idx][select_col]
 end
 
 # Weather data
-filename = "../../data/w_data.dat"
-data_file_path = File.expand_path(filename, __FILE__)
-puts min_spread(data_file_path, "MxT", "MnT", "Dy")
+data_file_path = File.expand_path("../../data/w_data.dat", __FILE__)
+smallest_diff = min_range(data_file_path, "MxT", "MnT", "Dy")
+puts "Weather: day with smallest temperature spread: ##{smallest_diff}"
 
 # Soccer
-filename = "../../data/soccer.dat"
-data_file_path = File.expand_path(filename, __FILE__)
-puts min_spread(data_file_path, "F", "A", "Team", abs_val: true)
+data_file_path = File.expand_path("../../data/soccer.dat", __FILE__)
+smallest_diff = min_range(data_file_path, "F", "A", "Team", abs_val: true)
+puts "Soccer: team with smallest difference in 'for' and 'against' goals: #{smallest_diff}"
