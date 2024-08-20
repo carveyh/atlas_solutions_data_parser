@@ -1,24 +1,5 @@
 require 'benchmark'
 
-=begin 
-* Assumptions: 
-- The position of each data cell always overlaps with at least 1 character of the column name it belongs to 
-- Spaces used as delimiters only, e.g. soccer.dat uses underscore for team names
-- Columns contain the same, valid data type
-- HEADER ROW: exactly one header row, with column names beginning with alphabetical character
-- DATA ROWS: begin with numeric digit
-
-* Issue:
-Ruby's csv class, and existing gems like smarter_csv, are not designed to handle
-data with values delimited by varying whitespace (specifically, spaces, not tabs \t),
-empty cells, and possible additional delimiters (e.g. '-' characters).
-Also, `id` column header may be missing.
-
-* Attempted solution:
-Gemless solution attempts to address this issue by matching each cell's data
-to their appropriate column, filling in blank cells, discarding non-space delimiters,
-and adding a unique `id` column header if needed.
-=end
 
 
 def generate_unique_id_col_name(col_names_arr)

@@ -1,21 +1,7 @@
 require "benchmark"
 require "csv"
 
-=begin
-* Assumptions:
-- Spaces used as delimiters only, e.g. soccer.dat uses underscore for team names
-- Columns contain the same, valid data type
-- HEADER ROW: exactly one header row, with column names beginning with alphabetical character
-- DATA ROWS: begin with numeric digit
 
-* Simple solution:
-This solution is simpler than the no_dependency_solution, using Ruby's CSV class to convert data into an Array of Hashes.
-Since the Ruby's CSV :headers option uses the first row as headers, not to mention varying white-space delimited data
-with gaps and extra non-data characters, it still must be cleaned.
-
-Unlike the other solution, it does not attempt to match cells to the proper column, resulting in some mismatches.
-However, for the scope of the prompts, it still produces the correct results.
-=end
 
 # Helper method in case table missing id col name
 def generate_unique_id_col_name(col_names_arr)
