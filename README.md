@@ -34,7 +34,7 @@ The column header for `id` may also be missing.
 
 #### No dependency solution:
 ---
-This solution attempts to solve the prompt while addressing the above challenges by matching each cell's data
+This solution attempts to solve the [prompt](prompt.md) while addressing the above challenges by matching each cell's data
 to their appropriate column by comparing the bounding indices of column headers against those cell data ^1,
 and adding a unique `id` column header if missing. It then populates an array of hashes manually, allowing O(1) lookup based on `id`. Depite the comparisons required, **benchmarks** show this solution to perform better than the simpler solution for the given data sets.
 
